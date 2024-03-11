@@ -2,10 +2,11 @@ import { Router } from "express"
 import ProductManager from '../dao/fsManagers/ProductManager.js'
 import ProductModel from '../dao/models/product.model.js';
 import cartModel from "../dao/models/cart.model.js";
+import { isAuthenticated, isAdmin, hasAdminCredentials } from "../public/js/authMiddleware.js";
 
 const router = Router();
 
-router.get('/', async (req, res) => {
+router.get('/', isAuthenticated, async (req, res) => {
     try {
       //const products = await ProductModel.find().lean().exec();
       let pageNum = parseInt(req.query.page) || 1;
@@ -15,17 +16,25 @@ router.get('/', async (req, res) => {
       products.prevLink = products.hasPrevPage ? `/products?limit=${itemsPorPage}&page=${products.prevPage}` : '';
       products.nextLink = products.hasNextPage ? `/products?limit=${itemsPorPage}&page=${products.nextPage}` : '';
       
-
-      console.log(products);
+      // console.log(products);
       
-      res.render('home', products);
+      // Obtener los datos del usuario desde la sesión
+      const userInfo = {
+        first_name: req.session.user.first_name,
+        last_name: req.session.user.last_name,
+        email: req.session.user.email,
+        age: req.session.user.age,
+      };
+      
+      // Renderizar la vista de productos y pasar los datos del usuario
+      res.render('home', { ...products, userInfo });
     } catch (error) {
       console.log('Error al leer los productos:', error);
       res.status(500).json({ error: 'Error al leer los productos' });
     }
   });
   
-  router.get('/realtimeproducts', async (req, res) => {
+  router.get('/realtimeproducts', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const products = await ProductModel.find().lean().exec();
       res.render('realTimeProducts', { products });
@@ -35,7 +44,7 @@ router.get('/', async (req, res) => {
     }
   });
 
-  router.get('/:cid', async (req, res) => {
+  router.get('/:cid', isAuthenticated, async (req, res) => {
     try {
       const id = req.params.cid
       const result = await ProductModel.findById(id).lean().exec();
@@ -48,7 +57,7 @@ router.get('/', async (req, res) => {
     }
   })
 
-  router.get('/carts/:cid', async (req, res) => {
+  router.get('/carts/:cid', isAuthenticated, async (req, res) => {
     // ID del carrito: 64a36d28ae5981f3f6e4488e
     try {
       const id = req.params.cid
